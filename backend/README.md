@@ -66,12 +66,13 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 The backend requires the **devtoolkit-mcp** server running as a subprocess.
 
+**GitHub:** https://github.com/tusharrayamajhi/devtoolkit-mcp
+
 ```bash
-# Clone and build the MCP server
 git clone https://github.com/tusharrayamajhi/devtoolkit-mcp
 cd devtoolkit-mcp
 npm install
-npm run build
+# dist/ is pre-built — npm run build is optional
 ```
 
 Note the absolute path to `dist/index.js` — you will need it for `.env`.

@@ -98,7 +98,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 ### Step 2 — MCP Server (devtoolkit-mcp)
 
-The MCP server provides the AI agent with file, command, git, and HTTP tools.
+The MCP server provides the AI agent with 20+ developer tools: file read/write, shell commands, git, HTTP requests, and code analysis.
 
 **GitHub:** https://github.com/tusharrayamajhi/devtoolkit-mcp
 
@@ -108,6 +108,8 @@ cd devtoolkit-mcp
 npm install
 npm run build
 ```
+
+> The `dist/` folder is pre-built and committed — you can skip `npm run build` and use it directly with `node dist/index.js`.
 
 Note the **absolute path** to `devtoolkit-mcp/dist/index.js` — you need it in the backend `.env`.
 
