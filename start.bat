@@ -2,7 +2,7 @@
 echo Starting CoderSathi...
 
 :: Start MCP server
-start "DevToolkit MCP Server" cmd /k "cd /d D:\mcp\devtoolkit-mcp && node dist/index.js"
+start "DevToolkit MCP Server" cmd /k "cd /d D:\mcp\devtoolkit-mcp && node_modules\.bin\tsx src\index.ts"
 
 :: Start backend
 start "CoderSathi Backend" cmd /k "cd /d D:\coding-agent\backend && python -m uvicorn main:app --reload --port 8000"

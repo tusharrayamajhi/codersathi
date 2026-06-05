@@ -100,7 +100,7 @@ export default function ChatPanel({
 
           {/* Model selector */}
           {models.length > 0 && (
-            <div className="flex items-center px-4 pt-3 pb-2" ref={menuRef}>
+            <div className="flex items-center px-4 pt-3 pb-2 relative" ref={menuRef}>
               <button
                 onClick={() => setShowModelMenu(v => !v)}
                 className="flex items-center gap-1.5 text-xs text-muted hover:text-zinc-300 transition-colors relative"

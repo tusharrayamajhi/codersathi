@@ -64,9 +64,19 @@ class MCPSession:
         self._tools: list = []
 
     async def start(self):
+        # MCP_SERVER_PATH = .../devtoolkit-mcp/dist/index.js
+        project_root = os.path.dirname(os.path.dirname(MCP_SERVER_PATH))
+        tsx_path = os.path.join(project_root, "node_modules", ".bin", "tsx")
+        src_path = os.path.join(project_root, "src", "index.ts")
+        if os.path.exists(tsx_path) and os.path.exists(src_path):
+            command, args = tsx_path, [src_path]
+            print(f"[MCP] Running from source via tsx")
+        else:
+            command, args = "node", [MCP_SERVER_PATH]
+            print(f"[MCP] Running from dist: {MCP_SERVER_PATH}")
         params = StdioServerParameters(
-            command="node",
-            args=[MCP_SERVER_PATH],
+            command=command,
+            args=args,
         )
         # stdio_client() returns ONE async context manager that yields (read, write)
         self._stdio_cm = stdio_client(params)

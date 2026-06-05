@@ -301,6 +301,8 @@ def build_agent_graph(tools: list[BaseTool], workspace_path: str, model: str | N
             return {"messages": []}
 
         results = []
+        ran_background = None
+
         for tc in last.tool_calls:
             tool = tools_by_name.get(tc["name"])
             if not tool:
@@ -310,9 +312,25 @@ def build_agent_graph(tools: list[BaseTool], workspace_path: str, model: str | N
                     content = await tool.ainvoke(tc["args"])
                 except Exception as e:
                     content = f"Tool error: {e}"
+
             results.append(
                 ToolMessage(content=str(content), tool_call_id=tc["id"], name=tc["name"])
             )
+
+            if tc["name"] == "run_background":
+                ran_background = content  # capture result to extract PID
+
+        # After run_background, inject a HumanMessage forcing the AI to poll
+        if ran_background is not None:
+            results.append(HumanMessage(
+                content=(
+                    f"The background command has started. "
+                    f"You MUST now: 1) call wait(seconds=15), then 2) call check_command_status with the PID from the result above. "
+                    f"Keep polling every 15 seconds until running=false. "
+                    f"Do NOT write files or declare success until check_command_status confirms the command completed successfully."
+                )
+            ))
+
         return {"messages": results}
 
     def should_continue(state: AgentState) -> str:
