@@ -17,7 +17,7 @@ echo  CoderSathi is starting...
 echo ====================================
 echo  MCP Server : stdio (background)
 echo  Backend    : http://localhost:8000
-echo  Frontend   : http://localhost:5173
+echo  Frontend   : http://localhost:5200
 echo ====================================
 echo.
 pause

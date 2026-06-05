@@ -210,10 +210,36 @@ async def websocket_endpoint(websocket: WebSocket, conv_id: str):
     async def permission_callback(tool_name: str, args: dict) -> bool:
         return await perm_manager.ask(tool_name, args)
 
+    # ── Workspace file watcher ────────────────────────────────────────────────
+    # Polls workspace every 3 seconds — sends workspace_refresh when files change.
+    # This makes files created by npm/vite/pip show up in the UI immediately.
+    _watcher_stop = asyncio.Event()
+
+    async def workspace_watcher():
+        IGNORE_DIRS = {'.git', '__pycache__', '.venv', 'venv'}
+        last_snapshot: set[str] = set()
+        while not _watcher_stop.is_set():
+            try:
+                current: set[str] = set()
+                for root, dirs, files in os.walk(workspace_path):
+                    dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+                    for f in files:
+                        rel = os.path.relpath(os.path.join(root, f), workspace_path)
+                        current.add(rel.replace('\\', '/'))
+                if current != last_snapshot:
+                    last_snapshot = current
+                    await ws_send({"type": "workspace_refresh"})
+            except Exception:
+                pass
+            await asyncio.sleep(3)
+
+    watcher_task = asyncio.create_task(workspace_watcher())
+
     try:
         await websocket.send_json({"type": "connected", "conv_id": conv_id, "workspace": workspace_path})
     except Exception:
         recv_task.cancel()
+        watcher_task.cancel()
         return
 
     # ── Main loop ─────────────────────────────────────────────────────────────
@@ -258,13 +284,18 @@ async def websocket_endpoint(websocket: WebSocket, conv_id: str):
                             .where(Message.conversation_id == conv_id)
                             .order_by(Message.created_at)
                         )).scalars().all()
-                        history = [{"role": m.role, "content": m.content or ""} for m in rows]
+                        # Only send user/assistant messages to the AI — tool_call/terminal are UI-only
+                        history = [
+                            {"role": m.role, "content": m.content or ""}
+                            for m in rows
+                            if m.role in ("user", "assistant")
+                        ]
                 except Exception as e:
                     print(f"[WS] history error: {e}")
 
                 await ws_send({"type": "agent_start"})
                 full_response = ""
-                # Track the in-flight tool call so we can pair start+end for DB save
+                partial_text  = ""   # AI text accumulated before a tool call
                 pending_tool: dict = {}
 
                 try:
@@ -278,11 +309,29 @@ async def websocket_endpoint(websocket: WebSocket, conv_id: str):
                     ):
                         ctype = chunk.get("type")
 
+                        if ctype == "token":
+                            partial_text += chunk.get("content", "")
+                            await ws_send(chunk)
+                            continue
+
                         if ctype == "done":
                             full_response = chunk.get("full_response", "")
 
                         elif ctype == "tool_start":
-                            pending_tool = chunk          # save args/description
+                            # Save any text the AI wrote before calling this tool
+                            if partial_text.strip():
+                                try:
+                                    async with AsyncSessionLocal() as db:
+                                        db.add(Message(
+                                            conversation_id=conv_id,
+                                            role="assistant",
+                                            content=partial_text.strip(),
+                                        ))
+                                        await db.commit()
+                                except Exception as ex:
+                                    print(f"[WS] partial text save error: {ex}")
+                                partial_text = ""
+                            pending_tool = chunk
                             await ws_send(chunk)
 
                         elif ctype == "tool_end":
@@ -362,9 +411,15 @@ async def websocket_endpoint(websocket: WebSocket, conv_id: str):
         except Exception:
             pass
     finally:
+        _watcher_stop.set()
         recv_task.cancel()
+        watcher_task.cancel()
         try:
             await recv_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await watcher_task
         except asyncio.CancelledError:
             pass
         await close_session(conv_id)

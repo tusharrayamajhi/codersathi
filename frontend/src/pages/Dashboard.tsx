@@ -96,6 +96,12 @@ export default function Dashboard() {
       case 'connected':
         break
 
+      case 'workspace_refresh':
+        if (activeConv && token) {
+          api.listFiles(token, activeConv).then(r => setFileList(r.files)).catch(() => {})
+        }
+        break
+
       case 'agent_start':
         streamingMsgRef.current = ''
         setIsStreaming(true)
@@ -314,13 +320,37 @@ export default function Dashboard() {
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const examples = [
+    'Build a React todo app with Tailwind',
+    'Create a FastAPI REST API with auth',
+    'Make a Next.js landing page',
+    'Write a Python web scraper',
+  ]
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-6">
-      <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mb-4 text-3xl">🤖</div>
-      <h2 className="text-white text-xl font-semibold mb-2">Welcome to CoderSathi</h2>
-      <p className="text-muted text-sm mb-6 max-w-xs">Your AI coding companion. Start a new conversation to build something amazing.</p>
-      <button onClick={onCreate} className="bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">
-        Start coding →
+    <div className="flex flex-col items-center justify-center h-full text-center px-8 select-none">
+      <div className="w-10 h-10 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center mb-5">
+        <span className="text-accent text-sm font-bold">CS</span>
+      </div>
+      <h2 className="text-white text-lg font-semibold mb-1.5 tracking-tight">What are we building?</h2>
+      <p className="text-muted text-sm mb-8 max-w-xs leading-relaxed">
+        Describe an app and the AI will write the code, run the commands, and set it up — start to finish.
+      </p>
+      <div className="grid grid-cols-1 gap-2 w-full max-w-xs mb-8">
+        {examples.map(ex => (
+          <button
+            key={ex}
+            onClick={onCreate}
+            className="text-left text-xs text-muted-2 bg-surface/40 hover:bg-surface border border-border hover:border-border-2 rounded-xl px-3.5 py-2.5 transition-all hover:text-zinc-300"
+          >
+            {ex}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={onCreate}
+        className="bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-glow"
+      >
+        New conversation
       </button>
     </div>
   )

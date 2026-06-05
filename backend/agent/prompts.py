@@ -35,19 +35,22 @@ File tools:
   search_in_files  — search text/pattern across files
 
 Command tools:
-  run_command          — run a shell command and wait for it to FULLY complete
+  run_command          — run a SHORT command that finishes quickly (< 30s)
+                         e.g. npm create vite, npx tailwindcss init, git init
                          ALWAYS set cwd to {workspace_path}
-                         Use timeout_ms: 180000 for npm install, 120000 for npm create
-  run_background       — start a long-running server/watcher (npm run dev, uvicorn, etc.)
-                         Returns PID + first few seconds of output, then detaches
+  run_background       — start a command in background, returns PID immediately
+                         Use for ALL long commands: npm install, pip install, builds
+                         Returns PID — then use wait + check_command_status to poll
+  check_command_status — check if a background command finished (by PID)
+                         Returns: running=true/false, exit_code, output so far
+                         Use in a loop: wait(15) → check_command_status(pid) → repeat
   read_process_output  — read latest output from a background process by PID
-  check_port           — check if a port is open (use after run_background to confirm server started)
+  check_port           — check if a port is open (use after run_background for servers)
 
 Utility tools:
-  wait             — pause for N seconds (use while waiting for slow processes)
-  get_file_info    — get metadata about a file
-  list_processes   — list running processes
-  get_system_info  — system info
+  wait                 — pause for N seconds
+  get_file_info        — metadata about a file
+  list_processes       — list running processes
 
 IMPORTANT: Only call tools listed above. Do NOT invent tool names.
 
@@ -77,20 +80,24 @@ A React app needs: package.json, vite.config, index.html, src/main.tsx, src/App.
 PROJECT SCAFFOLDING RECIPES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-▸ REACT APP (Vite + TypeScript) — run ONE command at a time:
+▸ REACT APP (Vite + TypeScript) — run ONE tool at a time:
   Step 0: list_directory: {workspace_path}           ← ALWAYS first
   Step 1: run_command: npm create vite@latest . -- --template react-ts
-          cwd: {workspace_path}, timeout_ms: 120000
-          (The "." = current dir, skips project name prompt)
-  Step 2: run_command: npm install
-          cwd: {workspace_path}, timeout_ms: 180000
-  Step 3: write_file each source file one at a time
-  Step 4: run_background: npm run dev -- --host   (cwd: {workspace_path}, capture_seconds: 6)
-  Step 5: check_port: 5173  → if open tell user "App running at http://localhost:5173"
-          if not open → read_process_output(pid) to diagnose errors
+          cwd: {workspace_path}, timeout_ms: 60000
+  Step 2: run_background: npm install
+          cwd: {workspace_path}, capture_seconds: 3  → returns PID
+  Step 3: wait(seconds=15)
+  Step 4: check_command_status(pid)
+          → if running=true: wait(15) again then check_command_status again
+          → if running=false and success=true: continue to Step 5
+          → if running=false and success=false: read output, diagnose error
+  Step 5: write_file each source file one at a time
+  Step 6: run_background: npm run dev -- --host  (capture_seconds: 6)
+  Step 7: check_port: 5173  → tell user "App running at http://localhost:5173"
 
-▸ REACT APP with Tailwind CSS — after base React steps:
-  run_command: npm install -D tailwindcss@3 postcss autoprefixer (timeout: 120000)
+▸ REACT APP with Tailwind CSS — after base React setup:
+  run_background: npm install -D tailwindcss@3 postcss autoprefixer
+  wait(15) → check_command_status(pid) loop until done
   run_command: npx tailwindcss init -p (timeout: 30000)
   write_file tailwind.config.js
   write_file src/index.css (with @tailwind directives)
@@ -100,15 +107,14 @@ PROJECT SCAFFOLDING RECIPES
   Tell user to open index.html in browser.
 
 ▸ NODE.JS / EXPRESS API
-  run_command: npm init -y  →  npm install express cors dotenv
+  run_command: npm init -y (timeout: 15000)
+  run_background: npm install express cors dotenv → wait(15) → check_command_status loop
   Write server.js and route files
-  Tell user to run: node server.js
 
 ▸ PYTHON PROJECT
   Write requirements.txt
-  run_command: pip install -r requirements.txt
+  run_background: pip install -r requirements.txt → wait(15) → check_command_status loop
   Write all .py files
-  Tell user to run: python main.py
 
 ▸ NEXT.JS
   run_command: npx create-next-app@latest . --typescript --tailwind --app --no-git --yes

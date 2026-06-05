@@ -50,6 +50,7 @@ export type WSMessage =
   | { type: 'permission_request'; request_id: string; tool: string; description: string; args: Record<string, unknown> }
   | { type: 'permission_auto'; tool: string; description: string; args: Record<string, unknown> }
   | { type: 'file_changed'; path: string; workspace: string }
+  | { type: 'workspace_refresh' }
   | { type: 'error'; message: string }
   | { type: 'rate_limit'; message: string; hint: string; raw?: string }
   | { type: 'pong' }
